@@ -1,0 +1,1 @@
+i use inotify to watch path , when file was modify, sync_file_server.py will sync file to sync_file_client.c
