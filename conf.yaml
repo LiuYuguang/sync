@@ -1,0 +1,4 @@
+db: "/home/lyg001/Documents/sync/sync.db"
+port: 8888
+notify_path: "/home/lyg001/Documents/sync/tmp"
+keep_alive: 10
