@@ -88,10 +88,17 @@ Cache* cache_create(int fd){
     c->len = 0;
     c->cap = CACHE_SIZE;
     c->buff = malloc(sizeof(unsigned char) * c->cap);
+    if(c->buff == NULL){
+        free(c);
+        c = NULL;
+    }
     return c;
 }
 
 void cache_destory(Cache* c){
+    if(c == NULL){
+        return;
+    }
     free(c->buff);
     free(c);
 }
@@ -120,6 +127,9 @@ ssize_t cache_readline(Cache *c,void *buff,size_t buffSize){
             if(c->offset == 0){
                 c->cap<<=1;
                 c->buff = realloc(c->buff,c->cap);
+                if(c->buff == NULL){
+                    return -1;
+                }
             }else{
                 c->len -= c->offset;
                 memmove(c->buff,c->buff+c->offset,c->len);     
@@ -153,6 +163,9 @@ ssize_t cache_readbytes(Cache *c,void *buff,size_t buffSize){
             if(c->offset == 0){
                 c->cap<<=1;
                 c->buff = realloc(c->buff,c->cap);
+                if(c->buff == NULL){
+                    return -1;
+                }
             }else{
                 c->len -= c->offset;
                 memmove(c->buff,c->buff+c->offset,c->len);     
