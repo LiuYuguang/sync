@@ -205,6 +205,10 @@ async def client_connected_cb(reader,writer):
                     break
     
                 file_name,file_time,counter = column
+                if not os.path.isfile(file_name):
+                    client_name[name] = (file_time,counter)
+                    asyncio.sleep(0)
+                    continue
                 #print('name {name}, file_name {file_name}, file_time {file_time}'.format(name=name,file_name=file_name,file_time=file_time))
                 file_size = os.stat(file_name).st_size
                 data = '{0}\r\n{1}\r\n{2}\r\n'.format(file_name,file_time,file_size).encode()
