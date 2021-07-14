@@ -1,6 +1,6 @@
 import asyncio
 import pyinotify
-import aiofiles
+#import aiofiles
 import sqlite3
 import time
 import datetime
@@ -51,12 +51,8 @@ def update_db_file(filename,file_time,counter):
     rowcount = 0
     cursor = db.cursor()
 
-    sql_insert = 'INSERT INTO FILE_INFO (FILE_NAME,FILE_TIME,COUNTER) VALUES("{filename}",{file_time},{counter});'.format(filename=filename,file_time=file_time,counter=counter)
-    sql_update = 'UPDATE FILE_INFO set FILE_TIME={file_time},COUNTER={counter} where FILE_NAME="{filename}";'.format(filename=filename,file_time=file_time,counter=counter)
-    #print('update_db_file','sql_update',sql_update)
-    #print('update_db_file','sql_insert',sql_insert)
     try:
-        cursor.execute(sql_update)
+        cursor.execute('UPDATE FILE_INFO set FILE_TIME=?,COUNTER=? where FILE_NAME=?;',(file_time,counter,filename))
         db.commit()
         rowcount = cursor.rowcount
     except Exception as e:
@@ -66,10 +62,10 @@ def update_db_file(filename,file_time,counter):
 
     if rowcount==1:
         cursor.close()
-        return cursor
+        return rowcount
     
     try:
-        cursor.execute(sql_insert)
+        cursor.execute('INSERT INTO FILE_INFO (FILE_NAME,FILE_TIME,COUNTER) VALUES(?,?,?);',(filename,file_time,counter))
         db.commit()
         rowcount = cursor.rowcount
     except Exception as e:
@@ -78,15 +74,13 @@ def update_db_file(filename,file_time,counter):
         pass
     
     cursor.close()
-    return cursor
+    return rowcount
 
 def select_db_file_next(counter):
     global db
     cursor = db.cursor()
 
-    sql = 'SELECT FILE_NAME, FILE_TIME, COUNTER FROM FILE_INFO WHERE COUNTER > {counter} ORDER BY COUNTER LIMIT 1;'.format(counter=counter)
-    #print('select_db_next',sql)
-    cursor.execute(sql)
+    cursor.execute('SELECT FILE_NAME, FILE_TIME, COUNTER FROM FILE_INFO WHERE COUNTER > ? ORDER BY COUNTER LIMIT 1;',(counter,))
     column = cursor.fetchone()
     cursor.close()
     return column
@@ -96,9 +90,7 @@ def delete_db_file_timeout(timer):
     global db
     cursor = db.cursor()
 
-    sql = 'DELETE FROM FILE_INFO WHERE FILE_TIME < {timer};'.format(timer=timer)
-    #print('delete_db_timeout',sql)
-    cursor.execute(sql)
+    cursor.execute('DELETE FROM FILE_INFO WHERE FILE_TIME < ?;',(timer,))
     db.commit()
     cursor.close()
     pass
@@ -107,8 +99,7 @@ def select_db_name(name):
     global db
     cursor = db.cursor()
 
-    sql = 'SELECT COUNTER,FILE_TIME FROM USER WHERE NAME = "{name}";'.format(name=name)
-    cursor.execute(sql)
+    cursor.execute('SELECT COUNTER,FILE_TIME FROM USER WHERE NAME = ?;',(name,))
     column = cursor.fetchone()
     cursor.close()
     if column == None:
@@ -120,12 +111,8 @@ def update_db_name_counter(name,file_time,counter):
     rowcount = 0
     cursor = db.cursor()
 
-    sql_insert = 'INSERT INTO USER (NAME,FILE_TIME,COUNTER) VALUES("{name}",{file_time},{counter});'.format(name=name,file_time=file_time,counter=counter)
-    sql_update = 'UPDATE USER set FILE_TIME={file_time}, COUNTER={counter} where NAME="{name}";'.format(name=name,file_time=file_time,counter=counter)
-    #print('update_db_name_counter','sql_update',sql_update)
-    #print('update_db_name_counter','sql_insert',sql_insert)
     try:
-        cursor.execute(sql_update)
+        cursor.execute('UPDATE USER set FILE_TIME=?, COUNTER=? where NAME=?;',(file_time,counter,name))
         db.commit()
         rowcount = cursor.rowcount
     except Exception as e:
@@ -138,7 +125,7 @@ def update_db_name_counter(name,file_time,counter):
         return rowcount
 
     try:
-        cursor.execute(sql_insert)
+        cursor.execute('INSERT INTO USER (NAME,FILE_TIME,COUNTER) VALUES(?,?,?);',(name,file_time,counter))
         db.commit()
         rowcount = cursor.rowcount
     except Exception as e:
@@ -181,7 +168,7 @@ async def client_connected_cb(reader,writer):
     try:
         name = await reader.readline()
         name = name.decode().strip()
-        print('name {name} start sync'.format(name=name))
+        print(f'name {name} start sync')
     except Exception as e:
         writer.close()
         return
@@ -205,13 +192,9 @@ async def client_connected_cb(reader,writer):
                     break
     
                 file_name,file_time,counter = column
-                if not os.path.isfile(file_name):
-                    client_name[name] = (file_time,counter)
-                    asyncio.sleep(0)
-                    continue
                 #print('name {name}, file_name {file_name}, file_time {file_time}'.format(name=name,file_name=file_name,file_time=file_time))
                 file_size = os.stat(file_name).st_size
-                data = '{0}\r\n{1}\r\n{2}\r\n'.format(file_name,file_time,file_size).encode()
+                data = f'{file_name}\r\n{file_time}\r\n{file_size}\r\n'.encode()
                 if file_size>0:
                     '''
                     async with aiofiles.open(file_name,'rb') as fd:
@@ -249,7 +232,7 @@ async def client_connected_cb(reader,writer):
     update_db_name_counter(name,file_time,counter)
     del client_name[name]
     queue_list.remove(queue)
-    print('name {name} finish sync'.format(name=name))
+    print(f'name {name} finish sync')
     pass
 
 async def server_handler(port):
@@ -319,8 +302,7 @@ if __name__ == '__main__':
     notify_path = conf_data['notify_path']
     second = conf_data['keep_alive']
 
-    print('start server port{port}, watch path{notify_path}, db{db}, keep_alive{second}'.
-    format(port=port,notify_path=notify_path,db=db,second=second))
+    print(f'start server port{port}, watch path{notify_path}, db{db}, keep_alive{second}')
 
     db = sqlite3.connect(db)
 
@@ -331,7 +313,7 @@ if __name__ == '__main__':
     if counter==0:
         counter += 1
     client_name[default_name] = (timer,counter)
-    print('default_name={default_name}, counter={counter}, timer={timer}'.format(default_name=default_name,counter=counter,timer=timer))
+    print(f'default_name={default_name}, counter={counter}, timer={timer}')
 
     signal.signal(signal.SIGTERM,signal_handler)
     signal.signal(signal.SIGINT,signal_handler)
